@@ -17,6 +17,8 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
+#include "unp.h"
+
 int
 main(int argc, char** argv)
 {
@@ -25,11 +27,14 @@ main(int argc, char** argv)
     char buff[MAXLINE];
 
 
+    //bzeros(&servaddr,
+
 
     for ( ; ; ) {
 
 
         Close(connfd);
+        return 0; /* so when testing not in infinet loop */
     }
 
 }
