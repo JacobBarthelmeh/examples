@@ -32,7 +32,7 @@
 #define TCP         0
 #define SA struct   sockaddr
 #define LISTENQ     1024
-#define SERV_PORT   9877
+#define SERV_PORT   11111
 
 /* 
  * Fatal error detected, print out and exit. */
@@ -54,8 +54,8 @@ respond(int sockfd)
     n = read(sockfd, buf, MAXLINE);
     if(n > 0){
         printf("%s\n", buf);
-        char response[10] = "I hear ya";
-        if(write(sockfd, response, 10) > 10){
+        char response[22] = "I hear ya for shizzle";
+        if(write(sockfd, response, 22) > 22){
             err_sys("write error");
         }
     }

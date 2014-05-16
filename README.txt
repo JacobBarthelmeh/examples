@@ -11,7 +11,7 @@ on the terminal while in the same directory that server-tcp.c is in. This
 creates an executable file called server. To start the server execute the
 server file.
 
-The server defaults to looking at port 9877 for a client.
+The server defaults to looking at port 11111 for a client.
 After printing out the clients message to the terminal and responding ("I hear 
 ya") to the client this basic version of a server immediately terminates the 
 connection to the current client and waits for the next.
