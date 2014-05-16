@@ -28,13 +28,14 @@
 #include <arpa/inet.h>
 #include <signal.h>
 
-#define MAXLINE 4096
-#define TCP 0
-#define SA struct sockaddr
-#define LISTENQ 1024
-#define SERV_PORT 9877
+#define MAXLINE     4096
+#define TCP         0
+#define SA struct   sockaddr
+#define LISTENQ     1024
+#define SERV_PORT   9877
 
-/* Fatal error detected, print out and exit. */
+/* 
+ * Fatal error detected, print out and exit. */
 void
 err_sys(const char *err, ...)
 {
@@ -42,10 +43,13 @@ err_sys(const char *err, ...)
     exit(1);
 }
 
+/* 
+ * Handles response to client.
+ */
 void
 respond(int sockfd)
 {
-    int  n;     /* length of string read */
+    int  n;              /* length of string read */
     char buf[MAXLINE];   /* string read from client */
     n = read(sockfd, buf, MAXLINE);
     if(n > 0){
@@ -59,6 +63,20 @@ respond(int sockfd)
     if(n < 0){
         err_sys("respond: read error");
     }
+}
+
+/*
+ *Listen to the socket. 
+ */
+void
+lstn(int listenfd, int backlog)
+{
+    char* ptr;
+    if( (ptr = getenv("LISTENQ")) != NULL)
+        backlog = atoi(ptr);
+    
+    if(listen(listenfd, backlog) < 0)
+        err_sys("listen error");
 }
 
 int
@@ -75,6 +93,7 @@ main(int argc, char** argv)
         err_sys("socket error");
     }
 
+    /* set up server address and port */
     bzero(&servaddr, sizeof(servaddr));
     servaddr.sin_family      = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -85,14 +104,9 @@ main(int argc, char** argv)
         err_sys("bind error");
     
     /* listen to the socket */   
-    char* ptr;
-    int backlog = LISTENQ;
-    if( (ptr = getenv("LISTENQ")) != NULL)
-        backlog = atoi(ptr);
+    lstn(listenfd, LISTENQ);
     
-    if(listen(listenfd, backlog) < 0)
-        err_sys("listen error");
-
+    /* main loop for accepting and responding to clients */
     for ( ; ; ) {
         clilen = sizeof(cliaddr);
         connfd = accept(listenfd, (SA *) &cliaddr, &clilen);
@@ -105,8 +119,9 @@ main(int argc, char** argv)
             printf("Connection from %s, port %d\n",
                 inet_ntop(AF_INET, &cliaddr.sin_addr, buff, sizeof(buff)),
                 ntohs(cliaddr.sin_port));
-            respond(connfd); /* respond to the accepted connection */
-            if(close(connfd) == -1)  /* close connection after responding */
+            respond(connfd);
+            /* closes the connections after responding */
+            if(close(connfd) == -1)
                 err_sys("close error");
         }
     }
