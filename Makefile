@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -I include
+CFLAGS=-Wall
 OBJ = server-tcp.o
 
 %.o: %.c $(DEPS)
