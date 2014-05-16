@@ -29,9 +29,10 @@
 #include <signal.h>
 
 #define MAXLINE 4096
+#define TCP 0
 #define SA struct sockaddr
 #define LISTENQ 1024
-#define SERV_PORT 11111
+#define SERV_PORT 9877
 
 /* Fatal error detected, print out and exit. */
 void
@@ -46,12 +47,13 @@ respond(int sockfd)
 {
     int  n;     /* length of string read */
     char buf[MAXLINE];   /* string read from client */
-    n = Read(sockfd, buf, MAXLINE);
-
+    n = read(sockfd, buf, MAXLINE);
     if(n > 0){
         printf("%s\n", buf);
         char response[10] = "I hear ya";
-        Write(sockfd, response, 10);
+        if(write(sockfd, response, 10) > 10){
+            err_sys("write error");
+        }
     }
 
     if(n < 0){
@@ -68,25 +70,27 @@ main(int argc, char** argv)
     socklen_t           clilen;
 
     /* find a socket */ 
-    listenfd = socket(AF_INET, SOCK_STREAM, IPPROT_TCP);
+    listenfd = socket(AF_INET, SOCK_STREAM, TCP);
     if(listenfd < 0){
         err_sys("socket error");
     }
 
-    
-
-    bzeros(&servaddr, sizeof(servaddr));
+    bzero(&servaddr, sizeof(servaddr));
     servaddr.sin_family      = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servaddr.sin_port        = htons(SERV_PORT);
-
 
     /* bind to a socket */
     if(bind(listenfd, (SA *) &servaddr, sizeof(servaddr)) < 0)
         err_sys("bind error");
     
     /* listen to the socket */   
-    if(listen(listenfd, LISTENQ) < 0)
+    char* ptr;
+    int backlog = LISTENQ;
+    if( (ptr = getenv("LISTENQ")) != NULL)
+        backlog = atoi(ptr);
+    
+    if(listen(listenfd, backlog) < 0)
         err_sys("listen error");
 
     for ( ; ; ) {
@@ -102,7 +106,8 @@ main(int argc, char** argv)
                 inet_ntop(AF_INET, &cliaddr.sin_addr, buff, sizeof(buff)),
                 ntohs(cliaddr.sin_port));
             respond(connfd); /* respond to the accepted connection */
-            Close(connfd);  /* close connection after responding */
+            if(close(connfd) == -1)  /* close connection after responding */
+                err_sys("close error");
         }
     }
 }
