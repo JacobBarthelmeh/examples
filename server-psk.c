@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <cyassl/sll.h> /* include cyassl security */
+#include <cyassl/ssl.h> /* include cyassl security */
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -48,16 +48,16 @@ err_sys(const char *err, ...)
  * Handles response to client.
  */
 void
-respond(int sockfd)
+respond(CYASSL* ssl)
 {
     int  n;              /* length of string read */
     char buf[MAXLINE];   /* string read from client */
-    n = read(sockfd, buf, MAXLINE);
+    n = CyaSSL_read(ssl, buf, MAXLINE);
     if(n > 0){
         printf("%s\n", buf);
         char response[22] = "I hear ya for shizzle";
-        if(write(sockfd, response, 22) > 22){
-            err_sys("write error");
+        if(CyaSSL_write(ssl, response, 22) > 22){
+            err_sys("respond: write error");
         }
     }
 
@@ -90,6 +90,12 @@ configure_ctx(CYASSL_CTX* ctx)
     if(CyaSSL_CTX_load_verify_locations(ctx, "certs/ca-cert.pem", 0) != 
             SSL_SUCCESS)
         err_sys("Error loading certs/ca-cert.pem, please check the file");
+    if(CyaSSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", 
+                SSL_FILETYPE_PEM) != SSL_SUCCESS)
+        err_sys("Error loading certs/server-cert.pem, please check the file");
+    if(CyaSSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem",
+                SSL_FILETYPE_PEM) != SSL_SUCCESS)
+        err_sys("Error loading certs/server-key.pem, please check the file");
 }
 
 int
@@ -101,7 +107,7 @@ main(int argc, char** argv)
     socklen_t           clilen;
 
     CyaSSL_Init();
-    CYASSL_CTX* ctx;
+    CYASSL_CTX* ctx = NULL;
     configure_ctx(ctx);
 
     /* find a socket */ 
@@ -126,6 +132,7 @@ main(int argc, char** argv)
     /* main loop for accepting and responding to clients */
     for ( ; ; ) {
         clilen = sizeof(cliaddr);
+        CYASSL* ssl;
         connfd = accept(listenfd, (SA *) &cliaddr, &clilen);
         if(connfd < 0){
             if(errno != EINTR){
@@ -136,8 +143,13 @@ main(int argc, char** argv)
             printf("Connection from %s, port %d\n",
                 inet_ntop(AF_INET, &cliaddr.sin_addr, buff, sizeof(buff)),
                 ntohs(cliaddr.sin_port));
-            respond(connfd);
+            /* creat CYASSL object and respond */
+            if((ssl = CyaSSL_new(ctx)) == NULL)
+                err_sys("CyaSSL_new error");
+            CyaSSL_set_fd(ssl, connfd);
+            respond(ssl);
             /* closes the connections after responding */
+            CyaSSL_free(ssl);
             if(close(connfd) == -1)
                 err_sys("close error");
         }
