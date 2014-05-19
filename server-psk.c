@@ -80,24 +80,6 @@ lstn(int listenfd, int backlog)
         err_sys("listen error");
 }
 
-void
-configure_ctx(CYASSL_CTX* ctx)
-{
-    /* create and initialize CYASSL_CTX structure */
-    if((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL)
-        err_sys("CyaSSL_CTX_new error");
-    
-    if(CyaSSL_CTX_load_verify_locations(ctx, "certs/ca-cert.pem", 0) != 
-            SSL_SUCCESS)
-        err_sys("Error loading certs/ca-cert.pem, please check the file");
-    if(CyaSSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", 
-                SSL_FILETYPE_PEM) != SSL_SUCCESS)
-        err_sys("Error loading certs/server-cert.pem, please check the file");
-    if(CyaSSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem",
-                SSL_FILETYPE_PEM) != SSL_SUCCESS)
-        err_sys("Error loading certs/server-key.pem, please check the file");
-}
-
 int
 main(int argc, char** argv)
 {
@@ -107,8 +89,23 @@ main(int argc, char** argv)
     socklen_t           clilen;
 
     CyaSSL_Init();
-    CYASSL_CTX* ctx = NULL;
-    configure_ctx(ctx);
+    
+    /* create ctx and configure certificates */
+    CYASSL_CTX* ctx;;
+    if((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL)
+        err_sys("CyaSSL_CTX_new error");
+    if(CyaSSL_CTX_load_verify_locations(ctx, "certs/ca-cert.pem", 0) != 
+            SSL_SUCCESS)
+        err_sys("Error loading certs/ca-cert.pem, please check the file");
+    if(CyaSSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", 
+                SSL_FILETYPE_PEM) != SSL_SUCCESS)
+        err_sys("Error loading certs/server-cert.pem, please check the file");
+    if(CyaSSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem",
+                SSL_FILETYPE_PEM) != SSL_SUCCESS)
+        err_sys("Error loading certs/server-key.pem, please check the file");
+   
+    /* use psk suite for security */ 
+    CyaSSL_CTX_set_cipher_list(TLS_PSK_WITH_AES_128_CBC_SHA256);
 
     /* find a socket */ 
     listenfd = socket(AF_INET, SOCK_STREAM, TCP);
@@ -143,7 +140,7 @@ main(int argc, char** argv)
             printf("Connection from %s, port %d\n",
                 inet_ntop(AF_INET, &cliaddr.sin_addr, buff, sizeof(buff)),
                 ntohs(cliaddr.sin_port));
-            /* creat CYASSL object and respond */
+            /* create CYASSL object and respond */
             if((ssl = CyaSSL_new(ctx)) == NULL)
                 err_sys("CyaSSL_new error");
             CyaSSL_set_fd(ssl, connfd);
@@ -154,6 +151,8 @@ main(int argc, char** argv)
                 err_sys("close error");
         }
     }
+
+    /* free up memory used by cyassl */
     CyaSSL_CTX_free(ctx);
     CyaSSL_Cleanup();
 }
