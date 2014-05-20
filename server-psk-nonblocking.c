@@ -45,7 +45,8 @@ enum{
 
 
 /* 
- * Fatal error detected, print out and exit. */
+ * Fatal error detected, print out and exit. 
+ */
 void err_sys(const char *err, ...)
 {
     printf("Fatal error : %s\n", err);
@@ -106,19 +107,13 @@ static inline void tcp_set_nonblocking(int* sockfd)
 }
 
 /*
- *
+ *Select the tcp, used when nonblocking.
  */
 static inline int tcp_select(int sockfd, int to_sec)
 {
     fd_set recvfds, errfds;
     int nfds = sockfd + 1;
-    int to_sec_in;
-    if (to_sec > 0) {
-        to_sec_in = to_sec;
-    } else {
-        to_sec_in = 0;
-    }
-    struct timeval timeout = {to_sec_in, 0};
+    struct timeval timeout = {(to_sec > 0) ? to_sec : 0, 0};
     int result;
 
     FD_ZERO(&recvfds);
@@ -141,15 +136,14 @@ static inline int tcp_select(int sockfd, int to_sec)
 }
 
 /*
- *Function to handle non blocking.
+ *Function to handle nonblocking.
  */
-static void NonBlockingSSL(CYASSL* ssl, int* connfd)
+static void NonBlockingSSL(CYASSL* ssl)
 {
     int ret;
     int error;
     int select_ret;
-    CyaSSL_set_using_nonblock(ssl, 1);
-    tcp_set_nonblocking(connfd);
+    int sockfd = (int)CyaSSL_get_fd(ssl);
     ret = CyaSSL_accept(ssl);
     error = CyaSSL_get_error(ssl, 0);
     while (ret != SSL_SUCCESS && (error == SSL_ERROR_WANT_READ ||
@@ -161,7 +155,7 @@ static void NonBlockingSSL(CYASSL* ssl, int* connfd)
         else
             printf("... server would write block\n");
 
-        select_ret = tcp_select(*connfd, currTimeout);
+        select_ret = tcp_select(sockfd, currTimeout);
         
         if ((select_ret == TEST_RECV_READY) || 
             (select_ret == TEST_ERROR_READY)) {
@@ -246,7 +240,9 @@ int main(int argc, char** argv)
             if ((ssl = CyaSSL_new(ctx)) == NULL)
                 err_sys("CyaSSL_new error");
             CyaSSL_set_fd(ssl, connfd);
-            NonBlockingSSL(ssl, &connfd); /* handle non blocking */
+            CyaSSL_set_using_nonblock(ssl, 1);
+            tcp_set_nonblocking(&connfd);
+            NonBlockingSSL(ssl); /* handle non blocking */
             respond(ssl);
             /* closes the connections after responding */
             CyaSSL_shutdown(ssl);
