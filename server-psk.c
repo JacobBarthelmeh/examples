@@ -155,6 +155,7 @@ int main(int argc, char** argv)
             CyaSSL_set_fd(ssl, connfd);
             respond(ssl);
             /* closes the connections after responding */
+            CyaSSL_shutdown(ssl);
             CyaSSL_free(ssl);
             if (close(connfd) == -1)
                 err_sys("close error");

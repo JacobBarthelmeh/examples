@@ -35,7 +35,14 @@
 #define SA struct   sockaddr
 #define LISTENQ     1024
 #define SERV_PORT   11111
-//#define TLS_PSK_WITH_AES_128_CBC_SHA256 0XAE
+
+enum{
+    TEST_SELECT_FAIL,
+    TEST_TIMEOUT,
+    TEST_RECV_READY,
+    TEST_ERROR_READY
+};
+
 
 /* 
  * Fatal error detected, print out and exit. */
@@ -98,6 +105,80 @@ static inline void tcp_set_nonblocking(int* sockfd)
         err_sys("fcntl set failed");
 }
 
+/*
+ *
+ */
+static inline int tcp_select(int sockfd, int to_sec)
+{
+    fd_set recvfds, errfds;
+    int nfds = sockfd + 1;
+    int to_sec_in;
+    if (to_sec > 0) {
+        to_sec_in = to_sec;
+    } else {
+        to_sec_in = 0;
+    }
+    struct timeval timeout = {to_sec_in, 0};
+    int result;
+
+    FD_ZERO(&recvfds);
+    FD_SET(sockfd, &recvfds);
+    FD_ZERO(&errfds);
+    FD_SET(sockfd, &errfds);
+
+    result = select(nfds, &recvfds, NULL, &errfds, &timeout);
+
+    if (result == 0)
+        return TEST_TIMEOUT;
+    else if (result > 0) {
+        if (FD_ISSET(sockfd, &recvfds))
+            return TEST_RECV_READY;
+        else if (FD_ISSET(sockfd, &errfds))
+            return TEST_ERROR_READY;
+    }
+
+    return TEST_SELECT_FAIL;
+}
+
+/*
+ *Function to handle non blocking.
+ */
+static void NonBlockingSSL(CYASSL* ssl, int* connfd)
+{
+    int ret;
+    int error;
+    int select_ret;
+    CyaSSL_set_using_nonblock(ssl, 1);
+    tcp_set_nonblocking(connfd);
+    ret = CyaSSL_accept(ssl);
+    error = CyaSSL_get_error(ssl, 0);
+    while (ret != SSL_SUCCESS && (error == SSL_ERROR_WANT_READ ||
+                                  error == SSL_ERROR_WANT_WRITE)) {
+        int currTimeout = 1;
+
+        if (error == SSL_ERROR_WANT_READ)
+            printf("... server would read block\n");
+        else
+            printf("... server would write block\n");
+
+        select_ret = tcp_select(*connfd, currTimeout);
+        
+        if ((select_ret == TEST_RECV_READY) || 
+            (select_ret == TEST_ERROR_READY)) {
+            ret = CyaSSL_accept(ssl);
+            error = CyaSSL_get_error(ssl, 0);
+        }
+        else if (select_ret == TEST_TIMEOUT && !CyaSSL_dtls(ssl)) {
+            error = SSL_ERROR_WANT_READ;
+        }
+        else {
+            error = SSL_FATAL_ERROR;
+        }
+    }
+    if (ret != SSL_SUCCESS)
+        err_sys("SSL_accept failed");
+}
+
 int main(int argc, char** argv)
 {
     int                 listenfd, connfd;
@@ -124,7 +205,6 @@ int main(int argc, char** argv)
     /* use psk suite for security */ 
     CyaSSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
     CyaSSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
-    // "PSK-AES128-CBC-SHA256"
     if (CyaSSL_CTX_set_cipher_list(ctx, "PSK-AES128-CBC-SHA256")
         != SSL_SUCCESS)
         err_sys("server can't set cipher list");
@@ -166,12 +246,10 @@ int main(int argc, char** argv)
             if ((ssl = CyaSSL_new(ctx)) == NULL)
                 err_sys("CyaSSL_new error");
             CyaSSL_set_fd(ssl, connfd);
-            /* non blocking */ 
-            CyaSSL_set_using_nonblock(ssl, 1);
-            tcp_set_nonblocking(&connfd);
-
+            NonBlockingSSL(ssl, &connfd); /* handle non blocking */
             respond(ssl);
             /* closes the connections after responding */
+            CyaSSL_shutdown(ssl);
             CyaSSL_free(ssl);
             if (close(connfd) == -1)
                 err_sys("close error");
