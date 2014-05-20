@@ -19,7 +19,6 @@
  */
 
 #include <cyassl/ssl.h> /* include cyassl security */
-#include <cyassl/options.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -68,7 +67,7 @@ void respond(CYASSL* ssl)
 /*
  *
  */
-unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity, unsigned char* key,
+static inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity, unsigned char* key,
         unsigned int key_max_len)
 {
     (void)ssl;
@@ -110,10 +109,11 @@ int main(int argc, char** argv)
    
     /* use psk suite for security */ 
     CyaSSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
-    //CyaSSL_CTX_set_psk_identity_hint(ctx, "cyassl server");
-    //if (CyaSSL_CTX_set_cipher_list(ctx, "PSK-AES128-CBC-SHA256") //"TLS_PSK_WITH_AES_128_CBC_SHA256")
-        //!= SSL_SUCCESS)
-        //err_sys("server can't set cipher list");
+    CyaSSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
+    // "PSK-AES128-CBC-SHA256"
+    if (CyaSSL_CTX_set_cipher_list(ctx, "PSK-AES128-CBC-SHA256")
+        != SSL_SUCCESS)
+        err_sys("server can't set cipher list");
 
     /* find a socket */ 
     listenfd = socket(AF_INET, SOCK_STREAM, TCP);
