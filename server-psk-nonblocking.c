@@ -28,6 +28,7 @@
 #include <errno.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <fcntl.h> /* needed for runing nonblocking connections */
 
 #define MAXLINE     4096
 #define TCP         0
@@ -65,7 +66,7 @@ void respond(CYASSL* ssl)
 }
 
 /*
- *
+ *Used for finding psk value.
  */
 static inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity, unsigned char* key,
         unsigned int key_max_len)
@@ -84,6 +85,19 @@ static inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity, u
     return 4;
 }
 
+/*
+ *Sets socket to be nonblocking.
+ */
+static inline void tcp_set_nonblocking(int* sockfd)
+{
+    int flags = fcntl(*sockfd, F_GETFL, 0);
+    if (flags < 0)
+        err_sys("fcntl get failed");
+    flags = fcntl(*sockfd, F_SETFL, flags | O_NONBLOCK);
+    if (flags < 0)
+        err_sys("fcntl set failed");
+}
+
 int main(int argc, char** argv)
 {
     int                 listenfd, connfd;
@@ -95,15 +109,15 @@ int main(int argc, char** argv)
     
     /* create ctx and configure certificates */
     CYASSL_CTX* ctx;
-    if((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL)
+    if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL)
         err_sys("CyaSSL_CTX_new error");
-    if(CyaSSL_CTX_load_verify_locations(ctx, "certs/ca-cert.pem", 0) != 
+    if (CyaSSL_CTX_load_verify_locations(ctx, "certs/ca-cert.pem", 0) != 
             SSL_SUCCESS)
         err_sys("Error loading certs/ca-cert.pem, please check the file");
-    if(CyaSSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", 
+    if (CyaSSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", 
                 SSL_FILETYPE_PEM) != SSL_SUCCESS)
         err_sys("Error loading certs/server-cert.pem, please check the file");
-    if(CyaSSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem",
+    if (CyaSSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem",
                 SSL_FILETYPE_PEM) != SSL_SUCCESS)
         err_sys("Error loading certs/server-key.pem, please check the file");
    
@@ -135,7 +149,6 @@ int main(int argc, char** argv)
     if (listen(listenfd, LISTENQ) < 0)
         err_sys("listen error");
 
-    
     /* main loop for accepting and responding to clients */
     for ( ; ; ) {
         clilen = sizeof(cliaddr);
@@ -153,6 +166,10 @@ int main(int argc, char** argv)
             if ((ssl = CyaSSL_new(ctx)) == NULL)
                 err_sys("CyaSSL_new error");
             CyaSSL_set_fd(ssl, connfd);
+            /* non blocking */ 
+            CyaSSL_set_using_nonblock(ssl, 1);
+            tcp_set_nonblocking(&connfd);
+
             respond(ssl);
             /* closes the connections after responding */
             CyaSSL_free(ssl);
