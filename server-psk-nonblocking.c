@@ -75,10 +75,10 @@ void respond(CYASSL* ssl)
             if (err != SSL_ERROR_WANT_READ)
                 err_sys("respond: read error");
             n = CyaSSL_read(ssl, buf, MAXLINE);
+            time(&current_time);
         }
-        time(&current_time);
     } while (err == SSL_ERROR_WANT_READ && n < 0 && 
-             difftime(current_time, start_time) < .00000000000000001);
+             difftime(current_time, start_time) < .0000000000000001);
     if (n > 0) {
         printf("%s\n", buf);
     } else {
@@ -89,7 +89,7 @@ void respond(CYASSL* ssl)
 /*
  *Used for finding psk value.
  */
-static inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
+inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
                                             unsigned char* key,
                                             unsigned int key_max_len)
 {
@@ -110,13 +110,13 @@ static inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
 /*
  *Select the tcp, used when nonblocking.
  */
-static inline int tcp_select(int sockfd, int to_sec)
+inline int tcp_select(int sockfd, int to_sec)
 {
     fd_set recvfds, errfds;
     int nfds = sockfd + 1;
-    struct timeval timeout = {(to_sec > 0) ? to_sec : 0, 0};
+    struct timeval timeout = {to_sec, 0};
     int result;
-
+    
     FD_ZERO(&recvfds);
     FD_SET(sockfd, &recvfds);
     FD_ZERO(&errfds);
@@ -139,7 +139,7 @@ static inline int tcp_select(int sockfd, int to_sec)
 /*
  *Function to handle nonblocking.
  */
-static void NonBlockingSSL(CYASSL* ssl)
+void NonBlockingSSL(CYASSL* ssl)
 {
     int ret;
     int error;
