@@ -1,4 +1,4 @@
-/* server-psk.c
+/* server-psk-nonblocking.c
  * A server ecample using a TCP connection with PSK security and non blocking. 
  *  
  * This file is part of CyaSSL.
@@ -28,8 +28,8 @@
 #include <errno.h>
 #include <arpa/inet.h>
 #include <signal.h>
-#include <fcntl.h> /* needed for runing nonblocking connections */
-#include <time.h> /* for time out on read loop */
+#include <fcntl.h>      /* needed for runing nonblocking connections */
+#include <time.h>       /* for time out on read loop */
 
 #define MAXLINE     4096
 #define TCP         0
@@ -37,13 +37,13 @@
 #define LISTENQ     1024
 #define SERV_PORT   11111
 
+/* states of the tcp connection */
 enum{
     TEST_SELECT_FAIL,
     TEST_TIMEOUT,
     TEST_RECV_READY,
     TEST_ERROR_READY
 };
-
 
 /* 
  * Fatal error detected, print out and exit. 
@@ -69,6 +69,8 @@ void respond(CYASSL* ssl)
     time(&start_time);
     if (CyaSSL_write(ssl, response, 22) > 22)
         err_sys("respond: write error");
+
+    /* timed loop to continue checking for a client message */
     do {
         if (n < 0) {
             err = CyaSSL_get_error(ssl, 0);
@@ -90,8 +92,7 @@ void respond(CYASSL* ssl)
  *Used for finding psk value.
  */
 inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
-                                            unsigned char* key,
-                                            unsigned int key_max_len)
+                                   unsigned char* key, unsigned int key_max_len)
 {
     (void)ssl;
     (void)key_max_len;
@@ -108,7 +109,7 @@ inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
 }
 
 /*
- *Select the tcp, used when nonblocking.
+ *Select the tcp, used when nonblocking. Checks the status of the connection.
  */
 inline int tcp_select(int sockfd, int to_sec)
 {
@@ -137,7 +138,8 @@ inline int tcp_select(int sockfd, int to_sec)
 }
 
 /*
- *Function to handle nonblocking.
+ *Function to handle nonblocking. Loops until tcp_select notifies that it's
+ *ready for action.
  */
 void NonBlockingSSL(CYASSL* ssl)
 {
@@ -158,6 +160,7 @@ void NonBlockingSSL(CYASSL* ssl)
 
         select_ret = tcp_select(sockfd, currTimeout);
         
+        /* if tcp_select signals ready try to accept otherwise continue loop*/
         if ((select_ret == TEST_RECV_READY) || 
             (select_ret == TEST_ERROR_READY)) {
             ret = CyaSSL_accept(ssl);
@@ -180,8 +183,8 @@ int main(int argc, char** argv)
     struct sockaddr_in  cliaddr, servaddr;
     char                buff[MAXLINE];
     socklen_t           clilen;
-
     CyaSSL_Init();
+
     /* create ctx and configure certificates */
     CYASSL_CTX* ctx;
     if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL)
@@ -236,7 +239,8 @@ int main(int argc, char** argv)
             printf("Connection from %s, port %d\n",
                    inet_ntop(AF_INET, &cliaddr.sin_addr, buff, sizeof(buff)),
                    ntohs(cliaddr.sin_port));
-            /* create CYASSL object and respond */
+    
+            /* create CYASSL object */
             if ((ssl = CyaSSL_new(ctx)) == NULL)
                 err_sys("CyaSSL_new error");
             CyaSSL_set_fd(ssl, connfd);

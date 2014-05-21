@@ -34,10 +34,10 @@
 #define SA struct   sockaddr
 #define LISTENQ     1024
 #define SERV_PORT   11111
-//#define TLS_PSK_WITH_AES_128_CBC_SHA256 0XAE
 
 /* 
- * Fatal error detected, print out and exit. */
+ * Fatal error detected, print out and exit. 
+ */
 void err_sys(const char *err, ...)
 {
     printf("Fatal error : %s\n", err);
@@ -65,9 +65,9 @@ void respond(CYASSL* ssl)
 }
 
 /*
- *
+ *Identify which psk key to use.
  */
-static inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity, unsigned char* key,
+inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity, unsigned char* key,
         unsigned int key_max_len)
 {
     (void)ssl;
