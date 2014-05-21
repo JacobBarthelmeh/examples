@@ -69,7 +69,7 @@ void respond(CYASSL* ssl)
     time(&start_time);
     if (CyaSSL_write(ssl, response, 22) > 22)
         err_sys("respond: write error");
-    do{
+    do {
         if (n < 0) {
             err = CyaSSL_get_error(ssl, 0);
             if (err != SSL_ERROR_WANT_READ)
@@ -105,19 +105,6 @@ static inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
     key[3] = 77;
 
     return 4;
-}
-
-/*
- *Sets socket to be nonblocking.
- */
-static inline void tcp_set_nonblocking(int* sockfd)
-{
-    int flags = fcntl(*sockfd, F_GETFL, 0);
-    if (flags < 0)
-        err_sys("fcntl get failed");
-    flags = fcntl(*sockfd, F_SETFL, flags | O_NONBLOCK);
-    if (flags < 0)
-        err_sys("fcntl set failed");
 }
 
 /*
@@ -253,10 +240,14 @@ int main(int argc, char** argv)
             if ((ssl = CyaSSL_new(ctx)) == NULL)
                 err_sys("CyaSSL_new error");
             CyaSSL_set_fd(ssl, connfd);
+
+            /* set CyaSSL and socket to non blocking and respond */
             CyaSSL_set_using_nonblock(ssl, 1);
-            tcp_set_nonblocking(&connfd);
-            NonBlockingSSL(ssl); /* handle non blocking */
+            if (fcntl(connfd, F_SETFL, O_NONBLOCK) < 0)
+                err_sys("fcntl set failed");
+            NonBlockingSSL(ssl); 
             respond(ssl);
+
             /* closes the connections after responding */
             CyaSSL_shutdown(ssl);
             CyaSSL_free(ssl);
