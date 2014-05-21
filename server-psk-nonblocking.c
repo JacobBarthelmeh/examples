@@ -1,5 +1,5 @@
 /* server-psk.c
- * A server ecample using a TCP connection with PSK security. 
+ * A server ecample using a TCP connection with PSK security and non blocking. 
  *  
  * This file is part of CyaSSL.
  *
@@ -29,6 +29,7 @@
 #include <arpa/inet.h>
 #include <signal.h>
 #include <fcntl.h> /* needed for runing nonblocking connections */
+#include <time.h> /* for time out on read loop */
 
 #define MAXLINE     4096
 #define TCP         0
@@ -58,26 +59,39 @@ void err_sys(const char *err, ...)
  */
 void respond(CYASSL* ssl)
 {
+    time_t start_time;
+    time_t current_time;
+    int err;
     int  n;              /* length of string read */
     char buf[MAXLINE];   /* string read from client */
     char response[22] = "I hear ya for shizzle";
     n = CyaSSL_read(ssl, buf, MAXLINE);
+    time(&start_time);
+    if (CyaSSL_write(ssl, response, 22) > 22)
+        err_sys("respond: write error");
+    do{
+        if (n < 0) {
+            err = CyaSSL_get_error(ssl, 0);
+            if (err != SSL_ERROR_WANT_READ)
+                err_sys("respond: read error");
+            n = CyaSSL_read(ssl, buf, MAXLINE);
+        }
+        time(&current_time);
+    } while (err == SSL_ERROR_WANT_READ && n < 0 && 
+             difftime(current_time, start_time) < .00000000000000001);
     if (n > 0) {
         printf("%s\n", buf);
-        if (CyaSSL_write(ssl, response, 22) > 22) {
-            err_sys("respond: write error");
-        }
-    }
-    if (n < 0) {
-        err_sys("respond: read error");
+    } else {
+        err_sys("timeout read error");
     }
 }
 
 /*
  *Used for finding psk value.
  */
-static inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity, unsigned char* key,
-        unsigned int key_max_len)
+static inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
+                                            unsigned char* key,
+                                            unsigned int key_max_len)
 {
     (void)ssl;
     (void)key_max_len;
@@ -181,7 +195,6 @@ int main(int argc, char** argv)
     socklen_t           clilen;
 
     CyaSSL_Init();
-    
     /* create ctx and configure certificates */
     CYASSL_CTX* ctx;
     if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL)
@@ -218,7 +231,7 @@ int main(int argc, char** argv)
     /* bind to a socket */
     if (bind(listenfd, (SA *) &servaddr, sizeof(servaddr)) < 0)
         err_sys("bind error");
-    
+        
     /* listen to the socket */   
     if (listen(listenfd, LISTENQ) < 0)
         err_sys("listen error");
