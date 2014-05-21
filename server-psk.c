@@ -110,7 +110,6 @@ int main(int argc, char** argv)
     /* use psk suite for security */ 
     CyaSSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
     CyaSSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
-    // "PSK-AES128-CBC-SHA256"
     if (CyaSSL_CTX_set_cipher_list(ctx, "PSK-AES128-CBC-SHA256")
         != SSL_SUCCESS)
         err_sys("server can't set cipher list");
