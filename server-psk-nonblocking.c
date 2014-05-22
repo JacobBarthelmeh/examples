@@ -61,7 +61,7 @@ void respond(CYASSL* ssl)
 {
     time_t start_time;
     time_t current_time;
-    int seconds = 2;
+    int seconds = 10;
     int err;
     int  n;              /* length of string read */
     char buf[MAXLINE];   /* string read from client */
@@ -85,7 +85,7 @@ void respond(CYASSL* ssl)
     if (n > 0) {
         printf("%s\n", buf);
     } else {
-        err_sys("timeout read error");
+       printf("Error: Timeout reached before read response");
     }
 }
 
