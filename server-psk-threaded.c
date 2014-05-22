@@ -19,7 +19,7 @@
  */
 
 #include <cyassl/ssl.h> /* include cyassl security */
-#include <pthread.h>     /* used for concurent threading */
+#include <pthread.h>    /* used for concurrent threading */
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -37,7 +37,6 @@
 #define SERV_PORT   11111
 
 CYASSL_CTX* ctx; /* global so it's shared by threads */
-
 
 /* 
  * Fatal error detected, print out and exit. 
@@ -68,14 +67,17 @@ inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity, unsigned
     return 4;
 }
 
+/*
+ *Process handled by a thread.
+ */
 void* cyassl_thread(void* fd)
 {
-    sleep(10);
     CYASSL* ssl;
     int connfd = (int)fd;
     int  n;              /* length of string read */
     char buf[MAXLINE];   /* string read from client */
     char response[22] = "I hear ya for shizzle";
+   
     /* create CYASSL object and respond */
     if ((ssl = CyaSSL_new(ctx)) == NULL)
         err_sys("CyaSSL_new error");
@@ -92,12 +94,13 @@ void* cyassl_thread(void* fd)
     if (n < 0) {
         err_sys("respond: read error");
     }
+   
     /* closes the connections after responding */
     CyaSSL_shutdown(ssl);
     CyaSSL_free(ssl);
     if (close(connfd) == -1)
         err_sys("close error"); 
-    return NULL;
+    pthread_exit( NULL);
 }
 
 int main(int argc, char** argv)
@@ -111,9 +114,7 @@ int main(int argc, char** argv)
     pthread_t           thread;
     void*               cyassl_thread(void*);
     CyaSSL_Init();
-    
     /* create ctx and configure certificates */
-    //CYASSL_CTX* ctx;
     if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL)
         err_sys("CyaSSL_CTX_new error");
     if (CyaSSL_CTX_load_verify_locations(ctx, "certs/ca-cert.pem", 0) != 
@@ -169,7 +170,7 @@ int main(int argc, char** argv)
             printf("Connection from %s, port %d\n",
                    inet_ntop(AF_INET, &cliaddr.sin_addr, buff, sizeof(buff)),
                    ntohs(cliaddr.sin_port));
-        pthread_create(&thread, NULL, &cyassl_thread, (void*) connfd);
+            pthread_create(&thread, NULL, &cyassl_thread, (void*) connfd);
         }
     }
     /* free up memory used by cyassl */
