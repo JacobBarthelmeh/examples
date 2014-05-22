@@ -61,6 +61,7 @@ void respond(CYASSL* ssl)
 {
     time_t start_time;
     time_t current_time;
+    int seconds = 2;
     int err;
     int  n;              /* length of string read */
     char buf[MAXLINE];   /* string read from client */
@@ -77,10 +78,10 @@ void respond(CYASSL* ssl)
             if (err != SSL_ERROR_WANT_READ)
                 err_sys("respond: read error");
             n = CyaSSL_read(ssl, buf, MAXLINE);
-            time(&current_time);
         }
+        time(&current_time);
     } while (err == SSL_ERROR_WANT_READ && n < 0 && 
-             difftime(current_time, start_time) < .0000000000000001);
+             difftime(current_time, start_time) < seconds);
     if (n > 0) {
         printf("%s\n", buf);
     } else {
@@ -109,6 +110,7 @@ inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
 }
 
 /*
+ *Pulled in from cyassl/test.h
  *Select the tcp, used when nonblocking. Checks the status of the connection.
  */
 inline int tcp_select(int sockfd, int to_sec)
@@ -118,6 +120,7 @@ inline int tcp_select(int sockfd, int to_sec)
     struct timeval timeout = {to_sec, 0};
     int result;
     
+    /* reset socket values */
     FD_ZERO(&recvfds);
     FD_SET(sockfd, &recvfds);
     FD_ZERO(&errfds);
@@ -125,6 +128,7 @@ inline int tcp_select(int sockfd, int to_sec)
 
     result = select(nfds, &recvfds, NULL, &errfds, &timeout);
 
+    /* logic for which enumerated value is returned */
     if (result == 0)
         return TEST_TIMEOUT;
     else if (result > 0) {
@@ -138,8 +142,9 @@ inline int tcp_select(int sockfd, int to_sec)
 }
 
 /*
+ *Pulled in from examples/server/server.c
  *Function to handle nonblocking. Loops until tcp_select notifies that it's
- *ready for action.
+ *ready for action. 
  */
 void NonBlockingSSL(CYASSL* ssl)
 {
@@ -153,6 +158,7 @@ void NonBlockingSSL(CYASSL* ssl)
                                   error == SSL_ERROR_WANT_WRITE)) {
         int currTimeout = 1;
 
+        /* print out for user notification */
         if (error == SSL_ERROR_WANT_READ)
             printf("... server would read block\n");
         else
@@ -173,6 +179,7 @@ void NonBlockingSSL(CYASSL* ssl)
             error = SSL_FATAL_ERROR;
         }
     }
+    /* faliure to accept */
     if (ret != SSL_SUCCESS)
         err_sys("SSL_accept failed");
 }
@@ -180,6 +187,7 @@ void NonBlockingSSL(CYASSL* ssl)
 int main(int argc, char** argv)
 {
     int                 listenfd, connfd;
+    int                 opt;
     struct sockaddr_in  cliaddr, servaddr;
     char                buff[MAXLINE];
     socklen_t           clilen;
@@ -219,6 +227,9 @@ int main(int argc, char** argv)
     servaddr.sin_port        = htons(SERV_PORT);
 
     /* bind to a socket */
+    opt = 1;
+    setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const void*)&opt,
+            sizeof(int));
     if (bind(listenfd, (SA *) &servaddr, sizeof(servaddr)) < 0)
         err_sys("bind error");
         

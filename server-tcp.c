@@ -66,6 +66,7 @@ void respond(int sockfd)
 int main(int argc, char** argv)
 {
     int                 listenfd, connfd;
+    int                 opt;
     struct sockaddr_in  cliaddr, servaddr;
     char                buff[MAXLINE];
     socklen_t           clilen;
@@ -83,6 +84,9 @@ int main(int argc, char** argv)
     servaddr.sin_port        = htons(SERV_PORT);
 
     /* bind to a socket */
+    opt = 1;
+    setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const void*)&opt,
+            sizeof(int));
     if (bind(listenfd, (SA *) &servaddr, sizeof(servaddr)) < 0)
         err_sys("bind error");
     
