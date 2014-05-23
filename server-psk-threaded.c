@@ -1,5 +1,5 @@
-/* server-psk.c
- * A server ecample using a TCP connection with PSK security. 
+/* server-psk-threaded.c
+ * A server ecample using a multi-threaded TCP connection with PSK security. 
  *  
  * This file is part of CyaSSL.
  *
@@ -50,8 +50,9 @@ void err_sys(const char *err, ...)
 /*
  *Identify which psk key to use.
  */
-inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity, unsigned char* key,
-        unsigned int key_max_len)
+inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
+                                     unsigned char* key,
+                                     unsigned int key_max_len)
 {
     (void)ssl;
     (void)key_max_len;
@@ -74,11 +75,11 @@ void* cyassl_thread(void* fd)
 {
     CYASSL* ssl;
     int connfd = (int)fd;
-    int  n;              /* length of string read */
-    char buf[MAXLINE];   /* string read from client */
+    int  n;             
+    char buf[MAXLINE];  
     char response[22] = "I hear ya for shizzle";
    
-    /* create CYASSL object and respond */
+    /* create CYASSL object */
     if ((ssl = CyaSSL_new(ctx)) == NULL)
         err_sys("CyaSSL_new error");
     CyaSSL_set_fd(ssl, connfd);
@@ -100,7 +101,7 @@ void* cyassl_thread(void* fd)
     CyaSSL_free(ssl);
     if (close(connfd) == -1)
         err_sys("close error"); 
-    pthread_exit( NULL);
+    pthread_exit(NULL);
 }
 
 int main(int argc, char** argv)
@@ -110,10 +111,10 @@ int main(int argc, char** argv)
     struct sockaddr_in  cliaddr, servaddr;
     char                buff[MAXLINE];
     socklen_t           clilen;
-
     pthread_t           thread;
     void*               cyassl_thread(void*);
     CyaSSL_Init();
+
     /* create ctx and configure certificates */
     if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL)
         err_sys("CyaSSL_CTX_new error");
@@ -156,7 +157,6 @@ int main(int argc, char** argv)
     /* listen to the socket */   
     if (listen(listenfd, LISTENQ) < 0)
         err_sys("listen error");
-
     
     /* main loop for accepting and responding to clients */
     for ( ; ; ) {
