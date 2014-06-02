@@ -19,6 +19,7 @@
  */
 
 #include <cyassl/ssl.h> /* include cyassl security */
+#include <cyassl/options.h> /* included for option sync */
 #include <pthread.h>    /* used for concurrent threading */
 #include <sys/socket.h>
 #include <netinet/in.h>
