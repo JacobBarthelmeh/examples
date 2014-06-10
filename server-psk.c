@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <cyassl/ssl.h> /* include cyassl security */
+#include <cyassl/ssl.h>     /* include cyassl security */
 #include <cyassl/options.h> /* included for options sync */
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -28,7 +28,6 @@
 #include <unistd.h>
 #include <errno.h>
 #include <arpa/inet.h>
-#include <signal.h>
 
 #define MAXLINE     4096
 #define LISTENQ     1024
@@ -64,10 +63,10 @@ void respond(CYASSL* ssl)
 }
 
 /*
- *Identify which psk key to use.
+ * Identify which psk key to use.
  */
-inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity, unsigned char* key,
-        unsigned int key_max_len)
+unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity, unsigned char* key,
+                              unsigned int key_max_len)
 {
     (void)ssl;
     (void)key_max_len;
@@ -98,27 +97,22 @@ int main()
     if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL)
         err_sys("CyaSSL_CTX_new error");
     if (CyaSSL_CTX_load_verify_locations(ctx, "certs/ca-cert.pem", 0) != 
-            SSL_SUCCESS)
+                                         SSL_SUCCESS)
         err_sys("Error loading certs/ca-cert.pem, please check the file");
     if (CyaSSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", 
-                SSL_FILETYPE_PEM) != SSL_SUCCESS)
+                                        SSL_FILETYPE_PEM) != SSL_SUCCESS)
         err_sys("Error loading certs/server-cert.pem, please check the file");
     if (CyaSSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem",
-                SSL_FILETYPE_PEM) != SSL_SUCCESS)
+                                       SSL_FILETYPE_PEM) != SSL_SUCCESS)
         err_sys("Error loading certs/server-key.pem, please check the file");
    
     /* use psk suite for security */ 
     CyaSSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
     CyaSSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
     if (CyaSSL_CTX_set_cipher_list(ctx, "PSK-AES128-CBC-SHA256")
-        != SSL_SUCCESS)
+                                   != SSL_SUCCESS)
         err_sys("server can't set cipher list");
 
-    /* find a socket */ 
-    listenfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (listenfd < 0) {
-        err_sys("socket error");
-    }
 
     /* set up server address and port */
     memset(&servAddr, 0, sizeof(servAddr));
