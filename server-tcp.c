@@ -48,6 +48,7 @@ void respond(int sockfd)
     int  n;              /* length of string read */
     char buf[MAXLINE];   /* string read from client */
     char response[22] = "I hear ya for shizzle";
+    memset(buf, 0, MAXLINE);
     n = read(sockfd, buf, MAXLINE);
     if (n > 0) {
         printf("%s\n", buf);
@@ -64,9 +65,9 @@ int main()
 {
     int                 listenfd, connfd;
     int                 opt;
-    struct sockaddr_in  cliaddr, servaddr;
+    struct sockaddr_in  cliAddr, servAddr;
     char                buff[MAXLINE];
-    socklen_t           clilen;
+    socklen_t           cliLen;
 
     /* find a socket , 0 for using TCP option */ 
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -74,16 +75,16 @@ int main()
         err_sys("socket error");
     
     /* set up server address and port */
-    memset(&servaddr, 0, sizeof(servaddr));
-    servaddr.sin_family      = AF_INET;
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port        = htons(SERV_PORT);
+    memset(&servAddr, 0, sizeof(servAddr));
+    servAddr.sin_family      = AF_INET;
+    servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servAddr.sin_port        = htons(SERV_PORT);
 
     /* bind to a socket */
     opt = 1;
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const void*)&opt,
                sizeof(int));
-    if (bind(listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0)
+    if (bind(listenfd, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0)
         err_sys("bind error");
     
     
@@ -114,4 +115,6 @@ int main()
             }
         }
     }
+    return 0;
 }
+

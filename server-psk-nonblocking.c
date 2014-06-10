@@ -32,8 +32,6 @@
 #include <time.h>       /* for time out on read loop */
 
 #define MAXLINE     4096
-#define TCP         0
-#define SA struct   sockaddr
 #define LISTENQ     1024
 #define SERV_PORT   11111
 
@@ -51,7 +49,6 @@ enum{
 void err_sys(const char *err, ...)
 {
     printf("Fatal error : %s\n", err);
-    exit(1);
 }
 
 /* 
@@ -66,6 +63,7 @@ void respond(CYASSL* ssl)
     int  n;              /* length of string read */
     char buf[MAXLINE];   /* string read from client */
     char response[22] = "I hear ya for shizzle";
+    memset(buf, 0, MAXLINE);
     n = CyaSSL_read(ssl, buf, MAXLINE);
     time(&start_time);
     if (CyaSSL_write(ssl, response, 22) > 22)
@@ -184,13 +182,13 @@ void NonBlockingSSL(CYASSL* ssl)
         err_sys("SSL_accept failed");
 }
 
-int main(int argc, char** argv)
+int main()
 {
     int                 listenfd, connfd;
     int                 opt;
-    struct sockaddr_in  cliaddr, servaddr;
+    struct sockaddr_in  cliAddr, servAddr;
     char                buff[MAXLINE];
-    socklen_t           clilen;
+    socklen_t           cliLen;
     CyaSSL_Init();
 
     /* create ctx and configure certificates */
@@ -198,13 +196,13 @@ int main(int argc, char** argv)
     if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL)
         err_sys("CyaSSL_CTX_new error");
     if (CyaSSL_CTX_load_verify_locations(ctx, "certs/ca-cert.pem", 0) != 
-            SSL_SUCCESS)
+                                         SSL_SUCCESS)
         err_sys("Error loading certs/ca-cert.pem, please check the file");
     if (CyaSSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", 
-                SSL_FILETYPE_PEM) != SSL_SUCCESS)
+                                        SSL_FILETYPE_PEM) != SSL_SUCCESS)
         err_sys("Error loading certs/server-cert.pem, please check the file");
     if (CyaSSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem",
-                SSL_FILETYPE_PEM) != SSL_SUCCESS)
+                                       SSL_FILETYPE_PEM) != SSL_SUCCESS)
         err_sys("Error loading certs/server-key.pem, please check the file");
    
     /* use psk suite for security */ 
@@ -215,22 +213,22 @@ int main(int argc, char** argv)
         err_sys("server can't set cipher list");
 
     /* find a socket */ 
-    listenfd = socket(AF_INET, SOCK_STREAM, TCP);
+    listenfd = socket(AF_INET, SOCK_STREAM, 0);
     if (listenfd < 0) {
         err_sys("socket error");
     }
 
     /* set up server address and port */
-    bzero(&servaddr, sizeof(servaddr));
-    servaddr.sin_family      = AF_INET;
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port        = htons(SERV_PORT);
+    memset(&servAddr, 0, sizeof(servAddr));
+    servAddr.sin_family      = AF_INET;
+    servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servAddr.sin_port        = htons(SERV_PORT);
 
     /* bind to a socket */
     opt = 1;
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const void*)&opt,
-            sizeof(int));
-    if (bind(listenfd, (SA *) &servaddr, sizeof(servaddr)) < 0)
+               sizeof(int));
+    if (bind(listenfd, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0)
         err_sys("bind error");
         
     /* listen to the socket */   
@@ -239,17 +237,17 @@ int main(int argc, char** argv)
 
     /* main loop for accepting and responding to clients */
     for ( ; ; ) {
-        clilen = sizeof(cliaddr);
+        cliLen = sizeof(cliAddr);
         CYASSL* ssl;
-        connfd = accept(listenfd, (SA *) &cliaddr, &clilen);
+        connfd = accept(listenfd, (struct sockaddr *) &cliAddr, &cliLen);
         if (connfd < 0) {
             if (errno != EINTR)
                 err_sys("accept error");
         }
         else {
             printf("Connection from %s, port %d\n",
-                   inet_ntop(AF_INET, &cliaddr.sin_addr, buff, sizeof(buff)),
-                   ntohs(cliaddr.sin_port));
+                   inet_ntop(AF_INET, &cliAddr.sin_addr, buff, sizeof(buff)),
+                   ntohs(cliAddr.sin_port));
     
             /* create CYASSL object */
             if ((ssl = CyaSSL_new(ctx)) == NULL)
@@ -273,5 +271,6 @@ int main(int argc, char** argv)
     /* free up memory used by cyassl */
     CyaSSL_CTX_free(ctx);
     CyaSSL_Cleanup();
+    return 0;
 }
 
