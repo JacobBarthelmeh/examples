@@ -29,8 +29,6 @@
 #include <signal.h>
 
 #define MAXLINE     4096
-#define TCP         0
-#define SA struct   sockaddr
 #define LISTENQ     1024
 #define SERV_PORT   11111
 
@@ -40,7 +38,6 @@
 void err_sys(const char *err, ...)
 {
     printf("Fatal error : %s\n", err);
-    exit(1);
 }
 
 /* 
@@ -63,7 +60,7 @@ void respond(int sockfd)
     }
 }
 
-int main(int argc, char** argv)
+int main()
 {
     int                 listenfd, connfd;
     int                 opt;
@@ -71,14 +68,13 @@ int main(int argc, char** argv)
     char                buff[MAXLINE];
     socklen_t           clilen;
 
-    /* find a socket */ 
-    listenfd = socket(AF_INET, SOCK_STREAM, TCP);
-    if (listenfd < 0) {
+    /* find a socket , 0 for using TCP option */ 
+    listenfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (listenfd < 0)
         err_sys("socket error");
-    }
-
+    
     /* set up server address and port */
-    bzero(&servaddr, sizeof(servaddr));
+    memset(&servaddr, 0, sizeof(servaddr));
     servaddr.sin_family      = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servaddr.sin_port        = htons(SERV_PORT);
@@ -86,31 +82,36 @@ int main(int argc, char** argv)
     /* bind to a socket */
     opt = 1;
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const void*)&opt,
-            sizeof(int));
-    if (bind(listenfd, (SA *) &servaddr, sizeof(servaddr)) < 0)
+               sizeof(int));
+    if (bind(listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0)
         err_sys("bind error");
     
-    /* listen to the socket */   
-    if (listen(listenfd, LISTENQ) < 0)
-        err_sys("listen error");
     
     /* main loop for accepting and responding to clients */
     for ( ; ; ) {
-        clilen = sizeof(cliaddr);
-        connfd = accept(listenfd, (SA *) &cliaddr, &clilen);
+        /* listen to the socket */   
+    if (listen(listenfd, LISTENQ) < 0) {
+        err_sys("listen error");
+        break;
+    }
+        
+        cliLen = sizeof(cliAddr);
+        connfd = accept(listenfd, (struct sockaddr *) &cliAddr, &cliLen);
         if (connfd < 0) {
-            if (errno != EINTR)
-                err_sys("accept error");
+            err_sys("accept error");
+            break;
         }
         else {
             printf("Connection from %s, port %d\n",
-                   inet_ntop(AF_INET, &cliaddr.sin_addr, buff, sizeof(buff)),
-                   ntohs(cliaddr.sin_port));
+                   inet_ntop(AF_INET, &cliAddr.sin_addr, buff, sizeof(buff)),
+                   ntohs(cliAddr.sin_port));
+                   
             respond(connfd);
             /* closes the connections after responding */
-            if (close(connfd) == -1)
+            if (close(connfd) == -1) {
                 err_sys("close error");
+                break;
+            }
         }
     }
 }
-
