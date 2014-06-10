@@ -120,6 +120,12 @@ int main()
     servAddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servAddr.sin_port        = htons(SERV_PORT);
 
+    /* find a socket */ 
+    listenfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (listenfd < 0) {
+        err_sys("socket error");
+    }
+
     /* bind to a socket */
     opt = 1;
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const void *)&opt,
