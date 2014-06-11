@@ -97,7 +97,7 @@ int respond(CYASSL* ssl)
 }
 
 /*
- *Used for finding psk value.
+ * Used for finding psk value.
  */
 inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
                                    unsigned char* key, unsigned int key_max_len)
@@ -117,8 +117,8 @@ inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
 }
 
 /*
- *Pulled in from cyassl/test.h
- *Select the tcp, used when nonblocking. Checks the status of the connection.
+ * Pulled in from cyassl/test.h
+ * Select the tcp, used when nonblocking. Checks the status of the connection.
  */
 inline int tcp_select(int sockfd, int to_sec)
 {
@@ -149,9 +149,9 @@ inline int tcp_select(int sockfd, int to_sec)
 }
 
 /*
- *Pulled in from examples/server/server.c
- *Function to handle nonblocking. Loops until tcp_select notifies that it's
- *ready for action. 
+ * Pulled in from examples/server/server.c
+ * Function to handle nonblocking. Loops until tcp_select notifies that it's
+ * ready for action. 
  */
 void NonBlockingSSL(CYASSL* ssl)
 {
@@ -211,6 +211,7 @@ int main()
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
     if (listenfd < 0) {
         err_sys("socket error");
+        return 1;
     }
 
     /* set up server address and port */
@@ -221,10 +222,14 @@ int main()
 
     /* bind to a socket */
     opt = 1;
-    setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const void*)&opt,
-               sizeof(int));
-    if (bind(listenfd, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0)
+    if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const void*)&opt,
+                   sizeof(int)) != 0) {
+        return 1;           
+    }
+    if (bind(listenfd, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0) {
         err_sys("bind error");
+        return 1;
+    }
         
 
     /* main loop for accepting and responding to clients */
