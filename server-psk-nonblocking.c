@@ -43,13 +43,6 @@ enum{
     TEST_ERROR_READY
 };
 
-/* 
- * Fatal error detected, print out and exit. 
- */
-void err_sys(const char *err, ...)
-{
-    printf("Fatal error : %s\n", err);
-}
 
 /* 
  * Handles response to client.
@@ -202,7 +195,7 @@ int main()
     CyaSSL_Init();
     
     if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL) {
-        err_sys("CyaSSL_CTX_new error");
+        printf("Fatal error : CyaSSL_CTX_new error\n");
         return 1;
     }
 
@@ -211,12 +204,12 @@ int main()
     CyaSSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
     if (CyaSSL_CTX_set_cipher_list(ctx, "PSK-AES128-CBC-SHA256")
         != SSL_SUCCESS)
-        err_sys("server can't set cipher list");
+        printf("Fatal error : server can't set cipher list\n");
 
     /* find a socket */ 
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
     if (listenfd < 0) {
-        err_sys("socket error");
+        printf("Fatal error : socket error\n");
         return 1;
     }
 
@@ -233,7 +226,7 @@ int main()
         return 1;           
     }
     if (bind(listenfd, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0) {
-        err_sys("bind error");
+        printf("Fatal error : bind error\n");
         return 1;
     }
         
@@ -244,7 +237,7 @@ int main()
         
         /* listen to the socket */   
         if (listen(listenfd, LISTENQ) < 0) {
-            err_sys("listen error");
+            printf("Fatal error : listen error\n");
             return 1;
         }
         
@@ -252,7 +245,7 @@ int main()
         connfd = accept(listenfd, (struct sockaddr *) &cliAddr, &cliLen);
         if (connfd < 0) {
             if (errno != EINTR) {
-                err_sys("accept error");
+                printf("Fatal error : accept error\n");
                 return 1;   
             }
         }
@@ -263,7 +256,7 @@ int main()
     
             /* create CYASSL object */
             if ((ssl = CyaSSL_new(ctx)) == NULL) {
-                err_sys("CyaSSL_new error");
+                printf("Fatal error : CyaSSL_new error\n");
                 return 1;   
             }
             CyaSSL_set_fd(ssl, connfd);
@@ -271,7 +264,7 @@ int main()
             /* set CyaSSL and socket to non blocking and respond */
             CyaSSL_set_using_nonblock(ssl, 1);
             if (fcntl(connfd, F_SETFL, O_NONBLOCK) < 0) {
-                err_sys("fcntl set failed");
+                printf("Fatal error : fcntl set failed\n");
                 return 1;
             }
             NonBlockingSSL(ssl); 
@@ -283,7 +276,7 @@ int main()
             CyaSSL_shutdown(ssl);
             CyaSSL_free(ssl);
             if (close(connfd) == -1) {
-                err_sys("close error");
+                printf("Fatal error : close error\n");
                 return 1;
             }
         }
