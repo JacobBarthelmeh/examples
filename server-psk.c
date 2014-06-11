@@ -101,9 +101,11 @@ int main()
         err_sys("CyaSSL_CTX_new error");
     if (CyaSSL_CTX_load_verify_locations(ctx, cert, 0) != SSL_SUCCESS)
         err_sys("Error loading certs/ca-cert.pem, please check the file");
-    if (CyaSSL_CTX_use_certificate_file(ctx, cert_server, SSL_FILETYPE_PEM) != SSL_SUCCESS)
+    if (CyaSSL_CTX_use_certificate_file(ctx, cert_server, SSL_FILETYPE_PEM)
+                                        != SSL_SUCCESS)
         err_sys("Error loading certs/server-cert.pem, please check the file");
-    if (CyaSSL_CTX_use_PrivateKey_file(ctx, cert_server, SSL_FILETYPE_PEM) != SSL_SUCCESS)
+    if (CyaSSL_CTX_use_PrivateKey_file(ctx, cert_server, SSL_FILETYPE_PEM)
+                                       != SSL_SUCCESS)
         err_sys("Error loading certs/server-key.pem, please check the file");
    
     /* use psk suite for security */ 
