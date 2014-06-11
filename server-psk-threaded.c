@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <cyassl/ssl.h> /* include cyassl security */
+#include <cyassl/ssl.h> /* include CyaSSL security */
 #include <cyassl/options.h> /* included for option sync */
 #include <pthread.h>    /* used for concurrent threading */
 #include <sys/socket.h>
@@ -115,19 +115,6 @@ int main()
     void*               cyassl_thread(void*);
     CyaSSL_Init();
 
-    /* create ctx and configure certificates */
-    if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL)
-        err_sys("CyaSSL_CTX_new error");
-    if (CyaSSL_CTX_load_verify_locations(ctx, "certs/ca-cert.pem", 0) != 
-                                         SSL_SUCCESS)
-        err_sys("Error loading certs/ca-cert.pem, please check the file");
-    if (CyaSSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", 
-                                        SSL_FILETYPE_PEM) != SSL_SUCCESS)
-        err_sys("Error loading certs/server-cert.pem, please check the file");
-    if (CyaSSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem",
-                                       SSL_FILETYPE_PEM) != SSL_SUCCESS)
-        err_sys("Error loading certs/server-key.pem, please check the file");
-   
     /* use psk suite for security */ 
     CyaSSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
     CyaSSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
