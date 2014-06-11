@@ -198,7 +198,7 @@ int main()
     struct sockaddr_in  cliAddr, servAddr;
     char                buff[MAXLINE];
     socklen_t           cliLen;
-    CYASSL*             ctx;
+    CYASSL_CTX*         ctx;
     CyaSSL_Init();
     
     if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL) {
