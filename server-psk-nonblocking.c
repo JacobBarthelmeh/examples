@@ -181,7 +181,7 @@ void NonBlockingSSL(CYASSL* ssl)
     }
     /* faliure to accept */
     if (ret != SSL_SUCCESS)
-        err_sys("SSL_accept failed");
+        printf("Fatal error : SSL_accept failed\n");
 }
 
 int main()
