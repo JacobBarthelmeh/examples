@@ -86,12 +86,12 @@ void* cyassl_thread(void* fd)
         printf("%s\n", buf);
         if (CyaSSL_write(ssl, response, strlen(response)) != strlen(response)) {
             printf("Fatal error :respond: write error");
-            //pthread_exit(1);
+            pthread_exit((void*) 1);
         }
     }
     if (n < 0) {
         printf("Fatal error : respond: read error");
-        //pthread_exit(1);
+        pthread_exit((void*) 1);
     }
    
     /* closes the connections after responding */
@@ -167,6 +167,7 @@ int main()
             if (pthread_create(&thread, NULL, &cyassl_thread, (void*) connfd) != 0) {
                 return 1;   
             }
+            pthread_detach(thread);
         }
     }
 
