@@ -73,8 +73,11 @@ void* cyassl_thread(void* fd)
     memset(buf, 0, MAXLINE);
 
     /* create CYASSL object */
-    if ((ssl = CyaSSL_new(ctx)) == NULL)
+    if ((ssl = CyaSSL_new(ctx)) == NULL) {
         printf("Fatal error : CyaSSL_new error");
+        pthread_exit(1);
+    }
+        
     CyaSSL_set_fd(ssl, connfd);
 
     /* respond to client */
@@ -132,8 +135,11 @@ int main()
 
     /* bind to a socket */
     opt = 1;
-    setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const void *)&opt,
-               sizeof(int));
+    if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const void *)&opt,
+               sizeof(int))) {
+        return 1;                                                
+    }
+    
     if (bind(listenfd, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0) {
         printf("Fatal error : bind error");
         return 1;   
