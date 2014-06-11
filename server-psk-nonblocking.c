@@ -200,7 +200,11 @@ int main()
     socklen_t           cliLen;
     CYASSL*             ctx;
     CyaSSL_Init();
-    ctx = CyaSSL_CTX_new();
+    
+    if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL) {
+        err_sys("CyaSSL_CTX_new error");
+        return 1;
+    }
 
     /* use psk suite for security */ 
     CyaSSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
