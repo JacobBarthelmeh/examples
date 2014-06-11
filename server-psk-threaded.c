@@ -18,9 +18,9 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <cyassl/ssl.h> /* include CyaSSL security */
+#include <cyassl/ssl.h>     /* include CyaSSL security */
 #include <cyassl/options.h> /* included for option sync */
-#include <pthread.h>    /* used for concurrent threading */
+#include <pthread.h>        /* used for concurrent threading */
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -37,13 +37,6 @@
 
 CYASSL_CTX* ctx; /* global so it's shared by threads */
 
-/* 
- * Fatal error detected, print out and exit. 
- */
-void err_sys(const char *err, ...)
-{
-    printf("Fatal error : %s\n", err);
-}
 
 /*
  * Identify which psk key to use.
@@ -75,32 +68,34 @@ void* cyassl_thread(void* fd)
     int connfd = (int)fd;
     int  n;             
     char buf[MAXLINE];  
-    char response[22] = "I hear ya for shizzle";
+    char response[] = "I hear ya for shizzle";
    
     memset(buf, 0, MAXLINE);
 
     /* create CYASSL object */
     if ((ssl = CyaSSL_new(ctx)) == NULL)
-        err_sys("CyaSSL_new error");
+        printf("Fatal error : CyaSSL_new error");
     CyaSSL_set_fd(ssl, connfd);
 
     /* respond to client */
     n = CyaSSL_read(ssl, buf, MAXLINE);
     if (n > 0) {
         printf("%s\n", buf);
-        if (CyaSSL_write(ssl, response, 22) > 22) {
-            err_sys("respond: write error");
+        if (CyaSSL_write(ssl, response, strlen(response)) != strlen(response)) {
+            printf("Fatal error :respond: write error");
+            pthread_exit(1);
         }
     }
     if (n < 0) {
-        err_sys("respond: read error");
+        printf("Fatal error : respond: read error");
+        pthread_exit(1);
     }
    
     /* closes the connections after responding */
     CyaSSL_shutdown(ssl);
     CyaSSL_free(ssl);
     if (close(connfd) == -1)
-        err_sys("close error"); 
+        printf("Fatal error : close error"); 
     pthread_exit(NULL);
 }
 
@@ -113,6 +108,7 @@ int main()
     socklen_t           cliLen;
     pthread_t           thread;
     void*               cyassl_thread(void*);
+
     CyaSSL_Init();
 
     /* use psk suite for security */ 
@@ -120,12 +116,12 @@ int main()
     CyaSSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
     if (CyaSSL_CTX_set_cipher_list(ctx, "PSK-AES128-CBC-SHA256")
                                    != SSL_SUCCESS)
-        err_sys("server can't set cipher list");
+        printf("Fatal error : server can't set cipher list");
 
     /* find a socket */ 
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
     if (listenfd < 0) {
-        err_sys("socket error");
+        printf("Fatal error : socket error");
     }
 
     /* set up server address and port */
@@ -138,31 +134,40 @@ int main()
     opt = 1;
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const void *)&opt,
                sizeof(int));
-    if (bind(listenfd, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0)
-        err_sys("bind error");
+    if (bind(listenfd, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0) {
+        printf("Fatal error : bind error");
+        return 1;   
+    }
     
     /* main loop for accepting and responding to clients */
     for ( ; ; ) {
         /* listen to the socket */   
-        if (listen(listenfd, LISTENQ) < 0)
-            err_sys("listen error");
+        if (listen(listenfd, LISTENQ) < 0) {
+            printf("Fatal error : listen error");
+            return 1;
+        }
 
         cliLen = sizeof(cliAddr);
         connfd = accept(listenfd, (struct sockaddr *) &cliAddr, &cliLen);
         if (connfd < 0) {
-            err_sys("accept error");
-            break;
+            printf("Fatal error : accept error");
+            return 1;
         }
         else {
             printf("Connection from %s, port %d\n",
                    inet_ntop(AF_INET, &cliAddr.sin_addr, buff, sizeof(buff)),
                    ntohs(cliAddr.sin_port));
-            pthread_create(&thread, NULL, &cyassl_thread, (void*) connfd);
+            
+            if (pthread_create(&thread, NULL, &cyassl_thread, (void*) connfd) != 0) {
+                return 1;   
+            }
         }
     }
+
     /* free up memory used by cyassl */
     CyaSSL_CTX_free(ctx);
     CyaSSL_Cleanup();
+
     return 0;
 }
 
