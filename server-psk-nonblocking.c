@@ -54,7 +54,7 @@ void err_sys(const char *err, ...)
 /* 
  * Handles response to client.
  */
-void respond(CYASSL* ssl)
+int respond(CYASSL* ssl)
 {
     time_t start_time;
     time_t current_time;
@@ -62,19 +62,25 @@ void respond(CYASSL* ssl)
     int err;
     int  n;              /* length of string read */
     char buf[MAXLINE];   /* string read from client */
-    char response[22] = "I hear ya for shizzle";
+    char response[] = "I hear ya for shizzle";
     memset(buf, 0, MAXLINE);
     n = CyaSSL_read(ssl, buf, MAXLINE);
     time(&start_time);
-    if (CyaSSL_write(ssl, response, 22) > 22)
+    if (CyaSSL_write(ssl, response, strlen(response)) != strlen(response)) {
         err_sys("respond: write error");
+        return 1;
+    }
 
     /* timed loop to continue checking for a client message */
     do {
         if (n < 0) {
+            
             err = CyaSSL_get_error(ssl, 0);
-            if (err != SSL_ERROR_WANT_READ)
+            if (err != SSL_ERROR_WANT_READ) {
                 err_sys("respond: read error");
+                return 1;
+            }
+            
             n = CyaSSL_read(ssl, buf, MAXLINE);
         }
         time(&current_time);
@@ -84,7 +90,10 @@ void respond(CYASSL* ssl)
         printf("%s\n", buf);
     } else {
        printf("Error: Timeout reached before read response");
+       return 1;
     }
+    
+    return 0;
 }
 
 /*
@@ -191,20 +200,6 @@ int main()
     socklen_t           cliLen;
     CyaSSL_Init();
 
-    /* create ctx and configure certificates */
-    CYASSL_CTX* ctx;
-    if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL)
-        err_sys("CyaSSL_CTX_new error");
-    if (CyaSSL_CTX_load_verify_locations(ctx, "certs/ca-cert.pem", 0) != 
-                                         SSL_SUCCESS)
-        err_sys("Error loading certs/ca-cert.pem, please check the file");
-    if (CyaSSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", 
-                                        SSL_FILETYPE_PEM) != SSL_SUCCESS)
-        err_sys("Error loading certs/server-cert.pem, please check the file");
-    if (CyaSSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem",
-                                       SSL_FILETYPE_PEM) != SSL_SUCCESS)
-        err_sys("Error loading certs/server-key.pem, please check the file");
-   
     /* use psk suite for security */ 
     CyaSSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
     CyaSSL_CTX_use_psk_identity_hint(ctx, "cyassl server");
@@ -231,18 +226,24 @@ int main()
     if (bind(listenfd, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0)
         err_sys("bind error");
         
-    /* listen to the socket */   
-    if (listen(listenfd, LISTENQ) < 0)
-        err_sys("listen error");
 
     /* main loop for accepting and responding to clients */
     for ( ; ; ) {
-        cliLen = sizeof(cliAddr);
         CYASSL* ssl;
+        
+        /* listen to the socket */   
+        if (listen(listenfd, LISTENQ) < 0) {
+            err_sys("listen error");
+            return 1;
+        }
+        
+        cliLen = sizeof(cliAddr);
         connfd = accept(listenfd, (struct sockaddr *) &cliAddr, &cliLen);
         if (connfd < 0) {
-            if (errno != EINTR)
+            if (errno != EINTR) {
                 err_sys("accept error");
+                return 1;   
+            }
         }
         else {
             printf("Connection from %s, port %d\n",
@@ -250,27 +251,36 @@ int main()
                    ntohs(cliAddr.sin_port));
     
             /* create CYASSL object */
-            if ((ssl = CyaSSL_new(ctx)) == NULL)
+            if ((ssl = CyaSSL_new(ctx)) == NULL) {
                 err_sys("CyaSSL_new error");
+                return 1;   
+            }
             CyaSSL_set_fd(ssl, connfd);
 
             /* set CyaSSL and socket to non blocking and respond */
             CyaSSL_set_using_nonblock(ssl, 1);
-            if (fcntl(connfd, F_SETFL, O_NONBLOCK) < 0)
+            if (fcntl(connfd, F_SETFL, O_NONBLOCK) < 0) {
                 err_sys("fcntl set failed");
+                return 1;
+            }
             NonBlockingSSL(ssl); 
-            respond(ssl);
+            if (respond(ssl) != 0) {
+                return 1;   
+            }
 
             /* closes the connections after responding */
             CyaSSL_shutdown(ssl);
             CyaSSL_free(ssl);
-            if (close(connfd) == -1)
+            if (close(connfd) == -1) {
                 err_sys("close error");
+                return 1;
+            }
         }
     }
     /* free up memory used by cyassl */
     CyaSSL_CTX_free(ctx);
     CyaSSL_Cleanup();
+    
     return 0;
 }
 
