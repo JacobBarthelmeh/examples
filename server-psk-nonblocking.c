@@ -60,7 +60,7 @@ int respond(CYASSL* ssl)
     n = CyaSSL_read(ssl, buf, MAXLINE);
     time(&start_time);
     if (CyaSSL_write(ssl, response, strlen(response)) != strlen(response)) {
-        err_sys("respond: write error");
+        printf("Fatal error : respond: write error\n");
         return 1;
     }
 
@@ -70,7 +70,7 @@ int respond(CYASSL* ssl)
             
             err = CyaSSL_get_error(ssl, 0);
             if (err != SSL_ERROR_WANT_READ) {
-                err_sys("respond: read error");
+                printf("Fatal error : respond: read error\n");
                 return 1;
             }
             
