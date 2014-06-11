@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
  */
 
-#include <cyassl/ssl.h>     /* include cyassl security */
+#include <cyassl/ssl.h>     /* include CyaSSL security */
 #include <cyassl/options.h> /* included for options sync */
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -32,6 +32,9 @@
 #define MAXLINE     4096
 #define LISTENQ     1024
 #define SERV_PORT   11111
+
+const char* cert        = "certs/ca-cert.pem";
+const char* cert_server = "certs/server-cert.pem";
 
 /* 
  * Fatal error detected, print out and exit. 
@@ -96,14 +99,11 @@ int main()
     CYASSL_CTX* ctx;
     if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL)
         err_sys("CyaSSL_CTX_new error");
-    if (CyaSSL_CTX_load_verify_locations(ctx, "certs/ca-cert.pem", 0) != 
-                                         SSL_SUCCESS)
+    if (CyaSSL_CTX_load_verify_locations(ctx, cert, 0) != SSL_SUCCESS)
         err_sys("Error loading certs/ca-cert.pem, please check the file");
-    if (CyaSSL_CTX_use_certificate_file(ctx, "certs/server-cert.pem", 
-                                        SSL_FILETYPE_PEM) != SSL_SUCCESS)
+    if (CyaSSL_CTX_use_certificate_file(ctx, cert_server, SSL_FILETYPE_PEM) != SSL_SUCCESS)
         err_sys("Error loading certs/server-cert.pem, please check the file");
-    if (CyaSSL_CTX_use_PrivateKey_file(ctx, "certs/server-key.pem",
-                                       SSL_FILETYPE_PEM) != SSL_SUCCESS)
+    if (CyaSSL_CTX_use_PrivateKey_file(ctx, cert_server, SSL_FILETYPE_PEM) != SSL_SUCCESS)
         err_sys("Error loading certs/server-key.pem, please check the file");
    
     /* use psk suite for security */ 
@@ -141,6 +141,7 @@ int main()
             err_sys("listen error");
             break;
         }
+        
         cliLen = sizeof(cliAddr);
         CYASSL* ssl;
         connfd = accept(listenfd, (struct sockaddr *) &cliAddr, &cliLen);
@@ -152,6 +153,7 @@ int main()
             printf("Connection from %s, port %d\n",
                    inet_ntop(AF_INET, &cliAddr.sin_addr, buff, sizeof(buff)),
                    ntohs(cliAddr.sin_port));
+            
             /* create CYASSL object and respond */
             if ((ssl = CyaSSL_new(ctx)) == NULL) {
                 err_sys("CyaSSL_new error");
@@ -159,16 +161,18 @@ int main()
             }
             CyaSSL_set_fd(ssl, connfd);
             respond(ssl);
+            
             /* closes the connections after responding */
             CyaSSL_shutdown(ssl);
             CyaSSL_free(ssl);
+            
             if (close(connfd) == -1) {
                 err_sys("close error");
                 break;
             }
         }
     }
-    /* free up memory used by cyassl */
+    /* free up memory used by CyaSSL */
     CyaSSL_CTX_free(ctx);
     CyaSSL_Cleanup();
     return 0;
