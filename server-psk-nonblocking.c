@@ -198,6 +198,7 @@ int main()
     struct sockaddr_in  cliAddr, servAddr;
     char                buff[MAXLINE];
     socklen_t           cliLen;
+    CYASSL*             ctx;
     CyaSSL_Init();
 
     /* use psk suite for security */ 
