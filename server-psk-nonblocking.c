@@ -172,7 +172,7 @@ void NonBlockingSSL(CYASSL* ssl)
             ret = CyaSSL_accept(ssl);
             error = CyaSSL_get_error(ssl, 0);
         }
-        else if (select_ret == TEST_TIMEOUT && !CyaSSL_dtls(ssl)) {
+        else if (select_ret == TEST_TIMEOUT) {
             error = SSL_ERROR_WANT_READ;
         }
         else {
