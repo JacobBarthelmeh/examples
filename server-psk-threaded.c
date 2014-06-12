@@ -37,7 +37,6 @@
 
 CYASSL_CTX* ctx; /* global so it's shared by threads */
 
-
 /*
  * Identify which psk key to use.
  */
@@ -75,7 +74,7 @@ void* cyassl_thread(void* fd)
     /* create CYASSL object */
     if ((ssl = CyaSSL_new(ctx)) == NULL) {
         printf("Fatal error : CyaSSL_new error");
-        pthread_exit(1);
+        /* place signal for forced error exit here */
     }
         
     CyaSSL_set_fd(ssl, connfd);
@@ -85,20 +84,23 @@ void* cyassl_thread(void* fd)
     if (n > 0) {
         printf("%s\n", buf);
         if (CyaSSL_write(ssl, response, strlen(response)) != strlen(response)) {
-            printf("Fatal error :respond: write error");
-            //pthread_exit((void*) 1);
+            printf("Fatal error :respond: write error\n");
+            /* place signal for forced error exit here */
         }
     }
     if (n < 0) {
-        printf("Fatal error : respond: read error");
-        //pthread_exit((void*) 1);
+        printf("Fatal error : respond: read error\n");
+        /* place signal for forced error exit here */
     }
    
     /* closes the connections after responding */
     CyaSSL_shutdown(ssl);
     CyaSSL_free(ssl);
-    if (close(connfd) == -1)
-        printf("Fatal error : close error"); 
+    if (close(connfd) == -1) {
+        printf("Fatal error : close error\n"); 
+        /* place signal for forced error exit here */
+    }
+
     pthread_exit(NULL);
 }
 
@@ -113,6 +115,9 @@ int main()
     void*               cyassl_thread(void*);
 
     CyaSSL_Init();
+    
+    if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL)
+        printf("Fatal error : CyaSSL_CTX_new error\n");
 
     /* use psk suite for security */ 
     CyaSSL_CTX_set_psk_server_callback(ctx, my_psk_server_cb);
@@ -164,10 +169,13 @@ int main()
                    inet_ntop(AF_INET, &cliAddr.sin_addr, buff, sizeof(buff)),
                    ntohs(cliAddr.sin_port));
             
-            if (pthread_create(&thread, NULL, &cyassl_thread, (void*) connfd) != 0) {
+            if (pthread_create(&thread, NULL, &cyassl_thread, (void*) connfd) 
+                               != 0) {
                 return 1;   
             }
-            pthread_detach(thread);
+            if (pthread_detach(thread) != 0) {
+                return 1;   
+            }
         }
     }
 

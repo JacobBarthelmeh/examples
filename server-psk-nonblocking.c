@@ -44,76 +44,11 @@ enum{
 };
 
 
-/* 
- * Handles response to client.
- */
-int respond(CYASSL* ssl)
-{
-    time_t start_time;
-    time_t current_time;
-    int seconds = 10;
-    int err;
-    int  n;              /* length of string read */
-    char buf[MAXLINE];   /* string read from client */
-    char response[] = "I hear ya for shizzle";
-    memset(buf, 0, MAXLINE);
-    n = CyaSSL_read(ssl, buf, MAXLINE);
-    time(&start_time);
-    if (CyaSSL_write(ssl, response, strlen(response)) != strlen(response)) {
-        printf("Fatal error : respond: write error\n");
-        return 1;
-    }
-
-    /* timed loop to continue checking for a client message */
-    do {
-        if (n < 0) {
-            
-            err = CyaSSL_get_error(ssl, 0);
-            if (err != SSL_ERROR_WANT_READ) {
-                printf("Fatal error : respond: read error\n");
-                return 1;
-            }
-            
-            n = CyaSSL_read(ssl, buf, MAXLINE);
-        }
-        time(&current_time);
-    } while (err == SSL_ERROR_WANT_READ && n < 0 && 
-             difftime(current_time, start_time) < seconds);
-    if (n > 0) {
-        printf("%s\n", buf);
-    } else {
-       printf("Error: Timeout reached before read response");
-       return 1;
-    }
-    
-    return 0;
-}
-
-/*
- * Used for finding psk value.
- */
-inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
-                                   unsigned char* key, unsigned int key_max_len)
-{
-    (void)ssl;
-    (void)key_max_len;
-
-    if (strncmp(identity, "Client_identity", 15) != 0)
-        return 0;
-
-    key[0] = 26;
-    key[1] = 43;
-    key[2] = 60;
-    key[3] = 77;
-
-    return 4;
-}
-
 /*
  * Pulled in from cyassl/test.h
  * Select the tcp, used when nonblocking. Checks the status of the connection.
  */
-inline int tcp_select(int sockfd, int to_sec)
+int tcp_select(int sockfd, int to_sec)
 {
     fd_set recvfds, errfds;
     int nfds = sockfd + 1;
@@ -141,17 +76,18 @@ inline int tcp_select(int sockfd, int to_sec)
     return TEST_SELECT_FAIL;
 }
 
+
 /*
  * Pulled in from examples/server/server.c
  * Function to handle nonblocking. Loops until tcp_select notifies that it's
  * ready for action. 
  */
-void NonBlockingSSL(CYASSL* ssl)
+int NonBlockingSSL(CYASSL* ssl)
 {
     int ret;
     int error;
     int select_ret;
-    int sockfd = (int)CyaSSL_get_fd(ssl);
+    int sockfd = CyaSSL_get_fd(ssl);
     ret = CyaSSL_accept(ssl);
     error = CyaSSL_get_error(ssl, 0);
     while (ret != SSL_SUCCESS && (error == SSL_ERROR_WANT_READ ||
@@ -180,9 +116,65 @@ void NonBlockingSSL(CYASSL* ssl)
         }
     }
     /* faliure to accept */
-    if (ret != SSL_SUCCESS)
+    if (ret != SSL_SUCCESS) {
         printf("Fatal error : SSL_accept failed\n");
+        ret = SSL_FATAL_ERROR;
+    }
+
+    return ret;
 }
+
+
+/* 
+ * Handles response to client.
+ */
+int respond(CYASSL* ssl)
+{
+    int    n;              /* length of string read */
+    char   buf[MAXLINE];   /* string read from client */
+    char   response[] = "I hear ya for shizzle";
+
+    memset(buf, 0, MAXLINE);
+    do {
+        if (NonBlockingSSL(ssl) != SSL_SUCCESS)
+            return 1;
+        n = CyaSSL_read(ssl, buf, MAXLINE);
+        if (n > 0) {
+            printf("%s\n", buf);
+        } 
+    }
+    while(n < 0);
+    
+    if (NonBlockingSSL(ssl) != SSL_SUCCESS)
+        return 1;
+    if (CyaSSL_write(ssl, response, strlen(response)) != strlen(response)) {
+        printf("Fatal error : respond: write error\n");
+        return 1;
+    }
+
+    return 0;
+}
+
+/*
+ * Used for finding psk value.
+ */
+inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
+                                   unsigned char* key, unsigned int key_max_len)
+{
+    (void)ssl;
+    (void)key_max_len;
+
+    if (strncmp(identity, "Client_identity", 15) != 0)
+        return 0;
+
+    key[0] = 26;
+    key[1] = 43;
+    key[2] = 60;
+    key[3] = 77;
+
+    return 4;
+}
+
 
 int main()
 {
@@ -192,6 +184,7 @@ int main()
     char                buff[MAXLINE];
     socklen_t           cliLen;
     CYASSL_CTX*         ctx;
+
     CyaSSL_Init();
     
     if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL) {
@@ -223,6 +216,7 @@ int main()
     opt = 1;
     if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const void*)&opt,
                    sizeof(int)) != 0) {
+        printf("Fatal error : setsockopt errer");
         return 1;           
     }
     if (bind(listenfd, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0) {
@@ -230,7 +224,6 @@ int main()
         return 1;
     }
         
-
     /* main loop for accepting and responding to clients */
     for ( ; ; ) {
         CYASSL* ssl;
@@ -267,10 +260,9 @@ int main()
                 printf("Fatal error : fcntl set failed\n");
                 return 1;
             }
-            NonBlockingSSL(ssl); 
-            if (respond(ssl) != 0) {
-                return 1;   
-            }
+            if (respond(ssl) != 0)
+                printf("Fatal error : respond error\n");
+                return 1;
 
             /* closes the connections after responding */
             CyaSSL_shutdown(ssl);
