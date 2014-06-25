@@ -40,7 +40,7 @@ CYASSL_CTX* ctx; /* global so it's shared by threads */
 /*
  * Identify which psk key to use.
  */
-inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
+static inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
                                      unsigned char* key,
                                      unsigned int key_max_len)
 {
