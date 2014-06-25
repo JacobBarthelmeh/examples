@@ -158,7 +158,7 @@ int respond(CYASSL* ssl)
 /*
  * Used for finding psk value.
  */
-inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
+static inline unsigned int my_psk_server_cb(CYASSL* ssl, const char* identity,
                                    unsigned char* key, unsigned int key_max_len)
 {
     (void)ssl;
