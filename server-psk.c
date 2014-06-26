@@ -133,7 +133,7 @@ int main()
     /* listen to the socket */   
     if (listen(listenfd, LISTENQ) < 0) {
         printf("Fatal error : listen error\n");
-        break;
+        return 1;
     }
     
     /* main loop for accepting and responding to clients */
