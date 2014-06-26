@@ -87,15 +87,14 @@ int main()
     if (bind(listenfd, (struct sockaddr *) &servAddr, sizeof(servAddr)) < 0)
         err_sys("bind error");
     
-    
-    /* main loop for accepting and responding to clients */
-    for ( ; ; ) {
-        /* listen to the socket */   
+    /* listen to the socket */   
     if (listen(listenfd, LISTENQ) < 0) {
         err_sys("listen error");
         break;
     }
-        
+    
+    /* main loop for accepting and responding to clients */
+    for ( ; ; ) {
         cliLen = sizeof(cliAddr);
         connfd = accept(listenfd, (struct sockaddr *) &cliAddr, &cliLen);
         if (connfd < 0) {
