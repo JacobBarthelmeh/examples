@@ -90,7 +90,7 @@ int main()
     /* listen to the socket */   
     if (listen(listenfd, LISTENQ) < 0) {
         err_sys("listen error");
-        break;
+        return 1;
     }
     
     /* main loop for accepting and responding to clients */
