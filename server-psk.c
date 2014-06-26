@@ -130,16 +130,15 @@ int main()
         return 1;
     }
     
+    /* listen to the socket */   
+    if (listen(listenfd, LISTENQ) < 0) {
+        printf("Fatal error : listen error\n");
+        break;
+    }
     
     /* main loop for accepting and responding to clients */
     for ( ; ; ) {
         CYASSL* ssl;
-
-        /* listen to the socket */   
-        if (listen(listenfd, LISTENQ) < 0) {
-            printf("Fatal error : listen error\n");
-            break;
-        }
         
         cliLen = sizeof(cliAddr);
         connfd = accept(listenfd, (struct sockaddr *) &cliAddr, &cliLen);
