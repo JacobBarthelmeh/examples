@@ -23,6 +23,14 @@
 #include <cyassl/options.h> /* included for options sync */
 #include <cyassl/test.h> 
 
+#ifdef svrCert
+    #undef svrCert
+#endif
+#define svrCert    "certs/server-cert.pem"
+#ifdef svrKey
+    #undef svrKey
+#endif
+#define svrKey     "certs/server-key.pem"
 #define MAXLINE     4096
 
 int main(int argc, char** argv)
@@ -38,7 +46,9 @@ int main(int argc, char** argv)
     arg.argv = argv;
 
     CyaSSL_Init();
-    
+   
+    CyaSSL_Debugging_ON();
+
     /* create ctx and configure certificates */
     if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL)
         err_sys("Fatal error : CyaSSL_CTX_new error");
@@ -53,7 +63,7 @@ int main(int argc, char** argv)
         err_sys("can't load server key file, "
                     "Please run from CyaSSL home dir");
         
-    tcp_accept(&listenfd, &connfd, &arg, yasslPort, 1, 0);
+    tcp_accept(&listenfd, &connfd, &arg, yasslPort, 1, 0, 0);
         
     if (connfd < 0) {
         err_sys("Fatal error : accept error");
