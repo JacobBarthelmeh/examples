@@ -1,7 +1,7 @@
 /* epoll-ssl.c
  *
- * A server ecample using epoll with SSL on a TCP connection. 
- *  
+ * A server ecample using epoll with SSL on a TCP connection.
+ *
  * This file is part of CyaSSL.
  *
  * CyaSSL is free software; you can redistribute it and/or modify
@@ -45,13 +45,13 @@ struct client_ssl {
     CYASSL*   ssl;
     int       fd;
     uint32_t u32;
-    int     status; 
+    int     status;
 } client_ssl;
 
 int numCon   = 0;
 CYASSL_CTX*  ctx;
 
-/* 
+/*
  * Handles response to client.
  */
 int respond(struct epoll_event povent, int epollfd)
@@ -131,7 +131,7 @@ int accept_process(struct epoll_event povent, int epollfd, int listenfd)
         /* create CYASSL object */
         if ((info->ssl = CyaSSL_new(ctx)) == NULL) {
             printf("Fatal error : CyaSSL_new error\n");
-            return 1;   
+            return 1;
         }
         CyaSSL_set_fd(info->ssl, info->fd);
         CyaSSL_set_using_nonblock(info->ssl, 1);
@@ -143,7 +143,7 @@ int accept_process(struct epoll_event povent, int epollfd, int listenfd)
         }
 
         numCon++;
-    }                   
+    }
 
     return 0;
 }
@@ -156,7 +156,7 @@ int main()
     struct epoll_event  povent, event[10];
 
     CyaSSL_Init();
-    
+
     if ((ctx = CyaSSL_CTX_new(CyaSSLv23_server_method())) == NULL) {
         printf("Fatal error : CyaSSL_CTX_new error\n");
         return 1;
@@ -180,13 +180,13 @@ int main()
         return 1;
     }
 
-    /* find a socket , 0 for using TCP option */ 
+    /* find a socket , 0 for using TCP option */
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
     if (listenfd < 0) {
         printf("socket error\n");
         return 1;
     }
-    
+
     /* set up server address and port */
     memset(&servAddr, 0, sizeof(servAddr));
     servAddr.sin_family      = AF_INET;
@@ -201,13 +201,13 @@ int main()
         printf("bind error");
         return 1;
     }
-    
-    /* listen to the socket */   
+
+    /* listen to the socket */
     if (listen(listenfd, LISTENQ) < 0) {
         printf("listen error");
         return 1;
     }
-    
+
     /* create epoll event */
     epollfd = epoll_create(10);
     if (epollfd == -1) {
@@ -239,15 +239,15 @@ int main()
                 respond(event[i], epollfd);
             }
         }
-        
+
     }
-    
+
     /* closes the connections after responding */
     if (close(epollfd) == -1) {
         printf("close error");
         return 1;
     }
-    
+
     return 0;
 }
 
