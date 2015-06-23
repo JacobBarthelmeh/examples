@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-Wall
 OBJ = server-tcp.o
-LIB = -lcyassl
+LIB = -lwolfssl
 
 %.o: %.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
